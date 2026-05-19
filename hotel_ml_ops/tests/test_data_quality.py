@@ -101,9 +101,13 @@ def test_mixed_attribute_columns_present():
         "market_segment should be string-like categorical storage"
     )
 
-    text_hits = [c for c in _TEXTUAL_EXAMPLES if c in df.columns and df[c].dtype == object]
+    text_hits = [
+        c
+        for c in _TEXTUAL_EXAMPLES
+        if c in df.columns and pd.api.types.is_string_dtype(df[c])
+    ]
     assert text_hits, (
-        f"Expected at least one object/text column among {_TEXTUAL_EXAMPLES}, "
+        f"Expected at least one string column among {_TEXTUAL_EXAMPLES}, "
         f"got dtypes sample: {df.dtypes.head(20).to_dict()}"
     )
 

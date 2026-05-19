@@ -1,0 +1,149 @@
+[
+  {
+    "model_id": "521bb4b3",
+    "artifact_path": "/workspaces/mlops/hotel_ml_ops/models/model_521bb4b3.joblib",
+    "registered_at": "2026-05-19T15:15:12.234356+00:00",
+    "metrics": {
+      "roc_auc": 0.918
+    },
+    "input_schema": {
+      "numeric_features": [
+        "lead_time",
+        "adr",
+        "stays_in_weekend_nights",
+        "stays_in_week_nights",
+        "adults",
+        "children",
+        "previous_cancellations",
+        "previous_bookings_not_canceled",
+        "booking_changes",
+        "days_in_waiting_list",
+        "total_of_special_requests"
+      ],
+      "categorical_features": [
+        "hotel",
+        "meal",
+        "market_segment",
+        "distribution_channel",
+        "deposit_type",
+        "customer_type",
+        "reserved_room_type",
+        "arrival_date_month"
+      ]
+    },
+    "output_schema": {
+      "target": "is_canceled",
+      "type": "binary",
+      "values": [
+        0,
+        1
+      ]
+    },
+    "dependencies": [
+      "scikit-learn",
+      "joblib",
+      "pandas",
+      "pyarrow"
+    ],
+    "training_rows": 95508,
+    "test_rows": 23878
+  },
+  {
+    "model_id": "65c48102",
+    "artifact_path": "/workspaces/mlops/hotel_ml_ops/models/model_65c48102.joblib",
+    "registered_at": "2026-05-19T15:21:37.426497+00:00",
+    "metrics": {
+      "roc_auc": 0.918
+    },
+    "input_schema": {
+      "numeric_features": [
+        "lead_time",
+        "adr",
+        "stays_in_weekend_nights",
+        "stays_in_week_nights",
+        "adults",
+        "children",
+        "previous_cancellations",
+        "previous_bookings_not_canceled",
+        "booking_changes",
+        "days_in_waiting_list",
+        "total_of_special_requests"
+      ],
+      "categorical_features": [
+        "hotel",
+        "meal",
+        "market_segment",
+        "distribution_channel",
+        "deposit_type",
+        "customer_type",
+        "reserved_room_type",
+        "arrival_date_month"
+      ]
+    },
+    "output_schema": {
+      "target": "is_canceled",
+      "type": "binary",
+      "values": [
+        0,
+        1
+      ]
+    },
+    "dependencies": [
+      "scikit-learn",
+      "joblib",
+      "pandas",
+      "pyarrow"
+    ],
+    "training_rows": 95508,
+    "test_rows": 23878
+  },
+  {
+    "model_id": "19d09e88",
+    "artifact_path": "/workspaces/mlops/hotel_ml_ops/models/model_19d09e88.joblib",
+    "registered_at": "2026-05-19T15:24:34.923810+00:00",
+    "metrics": {
+      "roc_auc": 0.918
+    },
+    "input_schema": {
+      "numeric_features": [
+        "lead_time",
+        "adr",
+        "stays_in_weekend_nights",
+        "stays_in_week_nights",
+        "adults",
+        "children",
+        "previous_cancellations",
+        "previous_bookings_not_canceled",
+        "booking_changes",
+        "days_in_waiting_list",
+        "total_of_special_requests"
+      ],
+      "categorical_features": [
+        "hotel",
+        "meal",
+        "market_segment",
+        "distribution_channel",
+        "deposit_type",
+        "customer_type",
+        "reserved_room_type",
+        "arrival_date_month"
+      ]
+    },
+    "output_schema": {
+      "target": "is_canceled",
+      "type": "binary",
+      "values": [
+        0,
+        1
+      ]
+    },
+    "dependencies": [
+      "scikit-learn",
+      "joblib",
+      "pandas",
+      "pyarrow"
+    ],
+    "training_rows": 95508,
+    "test_rows": 23878
+  }
+]
