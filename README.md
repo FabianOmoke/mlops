@@ -2,7 +2,7 @@
 
 ## Overview
 
-This task builds on the dataset and data quality tests from Task 1 (Hotel Booking Demand dataset)
+This task builds on the dataset and data quality tests from Task 1 ( Hotel Booking Demand dataset )
 and implements a full pre-deployment ML pipeline. The goal is to simulate a realistic production
 ML lifecycle: orchestrated steps, a trained and versioned model artifact, robustness validation,
 and graceful error handling.
