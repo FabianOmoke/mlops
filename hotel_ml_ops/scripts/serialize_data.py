@@ -94,8 +94,13 @@ def main() -> None:
     else:
         out = apply_training_contract(df)
 
+    # Add deterministic row_id for reproducible hash-based splitting in A/B tests
+    # Uses positional index (after filtering) to ensure stability across re-serialization
+    out = out.reset_index(drop=True).copy()
+    out.insert(0, "row_id", out.index.astype(str))
+
     out.to_parquet(parquet_path, index=False)
-    print(f"Wrote {len(out)} rows to {parquet_path}")
+    print(f"Wrote {len(out)} rows to {parquet_path} (with row_id column)")
 
 
 if __name__ == "__main__":

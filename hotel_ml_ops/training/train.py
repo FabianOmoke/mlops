@@ -89,7 +89,28 @@ TARGET = "is_canceled"
 LEAKAGE_COLUMNS = ["reservation_status", "reservation_status_date"]
 
 
-def _build_pipeline() -> Pipeline:
+def _build_pipeline(n_estimators: int = 200, excluded_features: list[str] | None = None) -> tuple[Pipeline, list[str], list[str]]:
+    """
+    Build a preprocessing + classification pipeline.
+    
+    Parameters
+    ----------
+    n_estimators : int
+        Number of estimators for RandomForestClassifier (flow parameter for versioning).
+    excluded_features : list[str] | None
+        Feature names to exclude from training (e.g., ["lead_time"]).
+    
+    Returns
+    -------
+    pipeline, numeric_features, categorical_features
+        The fitted Pipeline and the lists of features actually used.
+    """
+    if excluded_features is None:
+        excluded_features = []
+    
+    used_numeric = [f for f in NUMERIC_FEATURES if f not in excluded_features]
+    used_categorical = [f for f in CATEGORICAL_FEATURES if f not in excluded_features]
+    
     numeric_transformer = Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
         ("scaler", StandardScaler()),
@@ -99,22 +120,57 @@ def _build_pipeline() -> Pipeline:
         ("ohe", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
     ])
     preprocessor = ColumnTransformer([
-        ("num", numeric_transformer, NUMERIC_FEATURES),
-        ("cat", categorical_transformer, CATEGORICAL_FEATURES),
+        ("num", numeric_transformer, used_numeric),
+        ("cat", categorical_transformer, used_categorical),
     ])
-    return Pipeline([
+    pipeline = Pipeline([
         ("preprocessor", preprocessor),
         ("classifier", RandomForestClassifier(
-            n_estimators=200,
+            n_estimators=n_estimators,
             random_state=42,
             n_jobs=-1,
             class_weight="balanced",
         )),
     ])
+    return pipeline, used_numeric, used_categorical
 
 
-def run_training(logger: Any = None) -> str:
+def run_training(
+    logger: Any = None,
+    split_config: dict | None = None,
+    excluded_features: list[str] | None = None,
+    n_estimators: int = 200,
+    robustness_threshold: float = 0.80,
+) -> str:
+    """
+    Train a hotel cancellation classifier with configurable split and features.
+    
+    Parameters
+    ----------
+    logger : logging.Logger or Prefect logger
+        Logger for output.
+    split_config : dict | None
+        Data split configuration: {"train": 0.7, "robustness": 0.1, "holdout": 0.2}
+        If None, defaults to 80/20 (legacy Task 2 behavior).
+    excluded_features : list[str] | None
+        Features to exclude (e.g., ["lead_time"] for V2).
+    n_estimators : int
+        RandomForest estimator count (default 200 for V1 baseline).
+    robustness_threshold : float
+        Minimum ROC-AUC required at validation time (default 0.80).
+    
+    Returns
+    -------
+    str
+        Model ID in registry.
+    """
     log = logger or logging.getLogger(__name__)
+    
+    if split_config is None:
+        split_config = {"train": 0.8, "robustness": 0.0, "holdout": 0.2}
+    
+    if excluded_features is None:
+        excluded_features = []
 
     log.info(f"Loading data from {PARQUET_PATH} ...")
     df = pd.read_parquet(PARQUET_PATH)
@@ -138,17 +194,73 @@ def run_training(logger: Any = None) -> str:
             f"before retraining."
         )
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
+    # Apply 3-way split
+    train_ratio = split_config.get("train", 0.8)
+    robustness_ratio = split_config.get("robustness", 0.0)
+    holdout_ratio = split_config.get("holdout", 0.2)
+    
+    # Normalize in case they don't sum to 1
+    total = train_ratio + robustness_ratio + holdout_ratio
+    train_ratio /= total
+    robustness_ratio /= total
+    holdout_ratio /= total
+    
+    # First split: train + validation vs holdout
+    X_train_val, X_holdout, y_train_val, y_holdout = train_test_split(
+        X, y, test_size=holdout_ratio, random_state=42, stratify=y
     )
-    log.info(f"Training on {len(X_train):,} rows, validating on {len(X_test):,} rows.")
+    
+    # If robustness_ratio > 0, carve robustness_eval set
+    if robustness_ratio > 0:
+        robustness_frac = robustness_ratio / (train_ratio + robustness_ratio)
+        X_train, X_robustness, y_train, y_robustness = train_test_split(
+            X_train_val, y_train_val, test_size=robustness_frac, random_state=42, stratify=y_train_val
+        )
+    else:
+        X_train, y_train = X_train_val, y_train_val
+        X_robustness, y_robustness = None, None
+    
+    log.info(
+        f"3-way split: train={len(X_train):,} | "
+        f"robustness={len(X_robustness) if X_robustness is not None else 0:,} | "
+        f"holdout={len(X_holdout):,}"
+    )
 
-    pipeline = _build_pipeline()
+    pipeline, used_numeric, used_categorical = _build_pipeline(
+        n_estimators=n_estimators,
+        excluded_features=excluded_features,
+    )
     pipeline.fit(X_train, y_train)
 
-    y_prob = pipeline.predict_proba(X_test)[:, 1]
-    auc = roc_auc_score(y_test, y_prob)
-    log.info(f"Training complete — held-out ROC-AUC: {auc:.4f}")
+    # Extract feature importances and map back to original numeric features
+    try:
+        preprocessor = pipeline.named_steps["preprocessor"]
+        # ColumnTransformer provides the transformed feature names
+        feature_names = list(preprocessor.get_feature_names_out())
+    except Exception:
+        feature_names = []
+
+    try:
+        clf = pipeline.named_steps["classifier"]
+        importances = clf.feature_importances_
+    except Exception:
+        importances = None
+
+    numeric_importances: dict[str, float] = {}
+    if importances is not None and feature_names:
+        # Aggregate importances for each original numeric feature. Numeric
+        # features are not expanded by OneHotEncoder, so names should match.
+        for f in used_numeric:
+            vals = [imp for name, imp in zip(feature_names, importances) if name.endswith(f) or name == f or f in name]
+            numeric_importances[f] = float(sum(vals)) if vals else 0.0
+
+    # Evaluate on robustness set if it exists, otherwise on holdout
+    eval_X = X_robustness if X_robustness is not None else X_holdout
+    eval_y = y_robustness if y_robustness is not None else y_holdout
+    
+    y_prob = pipeline.predict_proba(eval_X)[:, 1]
+    auc = roc_auc_score(eval_y, y_prob)
+    log.info(f"Training complete — evaluation ROC-AUC: {auc:.4f}")
 
     models_dir = PROJECT_ROOT / "models"
     models_dir.mkdir(exist_ok=True)
@@ -175,13 +287,43 @@ def run_training(logger: Any = None) -> str:
         artifact_path=final_path,
         metrics={"roc_auc": round(auc, 4)},
         input_schema={
-            "numeric_features": NUMERIC_FEATURES,
-            "categorical_features": CATEGORICAL_FEATURES,
+            "numeric_features": used_numeric,
+            "categorical_features": used_categorical,
         },
         output_schema={"target": TARGET, "type": "binary", "values": [0, 1]},
         dependencies=["scikit-learn", "joblib", "pandas", "pyarrow"],
         training_rows=len(X_train),
-        test_rows=len(X_test),
+        test_rows=len(eval_X),
+        split_config=split_config,
+        excluded_features=excluded_features,
+        n_estimators=n_estimators,
     )
+    # Persist split row_id mapping for reproducibility / monitoring / A/B
+    try:
+        splits = {
+            "train": list(df.loc[X_train.index, "row_id"].astype(str)),
+            "robustness": list(df.loc[X_robustness.index, "row_id"].astype(str)) if X_robustness is not None else [],
+            "holdout": list(df.loc[X_holdout.index, "row_id"].astype(str)),
+        }
+        splits_path = models_dir / f"splits_{model_id}.json"
+        with open(splits_path, "w") as fh:
+            import json
+
+            json.dump(splits, fh, indent=2)
+        log.info(f"Wrote split mapping → {splits_path}")
+    except Exception:
+        log.warning("Could not write split mapping (non-fatal)")
+
+    # Register numeric feature importances as metadata (helpful for selecting drift features)
+    if numeric_importances:
+        registry.register(
+            model_id=f"{model_id}-meta",
+            artifact_path=final_path,
+            metrics={},
+            input_schema={},
+            output_schema={},
+            dependencies=[],
+            numeric_feature_importances=numeric_importances,
+        )
     log.info(f"Model registered with id={model_id}")
     return model_id

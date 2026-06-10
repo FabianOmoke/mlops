@@ -1,0 +1,58 @@
+{
+  "v1_baseline": {
+    "config": {
+      "split_config": {
+        "train": 0.7,
+        "robustness": 0.1,
+        "holdout": 0.2
+      },
+      "excluded_features": [],
+      "n_estimators": 200,
+      "robustness_threshold": 0.8
+    },
+    "model_id": "73dcb9fe"
+  },
+  "v2_modified": {
+    "config": {
+      "split_config": {
+        "train": 0.7,
+        "robustness": 0.1,
+        "holdout": 0.2
+      },
+      "excluded_features": [
+        "lead_time"
+      ],
+      "n_estimators": 100,
+      "robustness_threshold": 0.8
+    },
+    "model_id": "973687fe"
+  },
+  "v1_test": {
+    "config": {
+      "split_config": {
+        "train": 0.7,
+        "robustness": 0.1,
+        "holdout": 0.2
+      },
+      "excluded_features": [],
+      "n_estimators": 200,
+      "robustness_threshold": 0.8
+    },
+    "model_id": "020b170b"
+  },
+  "v2_test": {
+    "config": {
+      "split_config": {
+        "train": 0.7,
+        "robustness": 0.1,
+        "holdout": 0.2
+      },
+      "excluded_features": [
+        "lead_time"
+      ],
+      "n_estimators": 100,
+      "robustness_threshold": 0.8
+    },
+    "model_id": "7e638f10"
+  }
+}

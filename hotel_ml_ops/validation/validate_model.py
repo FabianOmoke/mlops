@@ -61,12 +61,11 @@ CATEGORICAL_FEATURES = [
 TARGET = "is_canceled"
 LEAKAGE_COLUMNS = ["reservation_status", "reservation_status_date"]
 
-MIN_ROC_AUC = 0.80
-MAX_FLIP_RATE = 0.05
+MIN_FLIP_RATE = 0.05
 NOISE_SIGMA = 0.01
 
 
-def run_validation(model_id: str, logger: Any = None) -> None:
+def run_validation(model_id: str, logger: Any = None, min_roc_auc: float = 0.80) -> None:
     log = logger or logging.getLogger(__name__)
 
     from versioning.model_registry import ModelRegistry
@@ -80,16 +79,33 @@ def run_validation(model_id: str, logger: Any = None) -> None:
     X = df[NUMERIC_FEATURES + CATEGORICAL_FEATURES]
     y = df[TARGET]
 
-    _, X_test, _, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+    # Prefer using the saved split mapping from the training run if available
+    splits_path = PROJECT_ROOT / "models" / f"splits_{model_id}.json"
+    if splits_path.is_file():
+        with open(splits_path) as fh:
+            import json
+
+            splits = json.load(fh)
+        eval_ids = set(splits.get("robustness") or splits.get("holdout") or [])
+        if eval_ids:
+            mask = df["row_id"].astype(str).isin(eval_ids)
+            X_test = X[mask]
+            y_test = y[mask]
+        else:
+            _, X_test, _, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42, stratify=y
+            )
+    else:
+        _, X_test, _, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
 
     # Check 1: ROC-AUC
     y_prob = pipeline.predict_proba(X_test)[:, 1]
     auc = roc_auc_score(y_test, y_prob)
-    log.info(f"Robustness check 1 — ROC-AUC: {auc:.4f} (threshold >= {MIN_ROC_AUC})")
-    assert auc >= MIN_ROC_AUC, (
-        f"ROBUSTNESS FAIL: ROC-AUC {auc:.4f} is below the minimum threshold of {MIN_ROC_AUC}."
+    log.info(f"Robustness check 1 — ROC-AUC: {auc:.4f} (threshold >= {min_roc_auc})")
+    assert auc >= min_roc_auc, (
+        f"ROBUSTNESS FAIL: ROC-AUC {auc:.4f} is below the minimum threshold of {min_roc_auc}."
     )
     log.info("  ✓ ROC-AUC check passed.")
 
@@ -105,10 +121,10 @@ def run_validation(model_id: str, logger: Any = None) -> None:
     noisy_preds = pipeline.predict(X_test_noisy)
     flip_rate = (base_preds != noisy_preds).mean()
 
-    log.info(f"Robustness check 2 — Flip rate: {flip_rate:.4f} (threshold <= {MAX_FLIP_RATE})")
-    assert flip_rate <= MAX_FLIP_RATE, (
+    log.info(f"Robustness check 2 — Flip rate: {flip_rate:.4f} (threshold <= {MIN_FLIP_RATE})")
+    assert flip_rate <= MIN_FLIP_RATE, (
         f"ROBUSTNESS FAIL: {flip_rate:.2%} of predictions flipped under noise, "
-        f"exceeding the {MAX_FLIP_RATE:.0%} stability threshold."
+        f"exceeding the {MIN_FLIP_RATE:.0%} stability threshold."
     )
     log.info("  ✓ Prediction stability check passed.")
     log.info(f"Model {model_id} passed all robustness checks.")

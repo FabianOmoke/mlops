@@ -1,0 +1,26 @@
+[
+  {
+    "flow_version_id": "v1_baseline",
+    "flow_params": {
+      "split_config": {"train": 0.7, "robustness": 0.1, "holdout": 0.2},
+      "excluded_features": [],
+      "n_estimators": 200,
+      "robustness_threshold": 0.80
+    },
+    "model_id": "1030b6e4",
+    "registered_at": "2026-06-10T20:08:00+00:00",
+    "notes": "Baseline: full feature set (11 numeric + 8 categorical), n_estimators=200. 3-way split with truly unseen holdout for Task 3."
+  },
+  {
+    "flow_version_id": "v2_no_lead_time",
+    "flow_params": {
+      "split_config": {"train": 0.7, "robustness": 0.1, "holdout": 0.2},
+      "excluded_features": ["lead_time"],
+      "n_estimators": 100,
+      "robustness_threshold": 0.80
+    },
+    "model_id": "a6630201",
+    "registered_at": "2026-06-10T20:10:00+00:00",
+    "notes": "Modified: excludes lead_time (data engineering change) + reduced n_estimators=100 (model change). Spans both parameter categories for versioning."
+  }
+]
