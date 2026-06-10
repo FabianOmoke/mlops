@@ -1,10 +1,10 @@
-# MLOps Assignment — Task 2: Pre-Deployment Tests
+# MLOps Assignment: Task 2: Pre-Deployment Tests
 
 ## Overview
 
 This task builds on the dataset and data quality tests from Task 1 ( Hotel Booking Demand dataset )
 and implements a full pre-deployment ML pipeline. The goal is to simulate a realistic production
-ML lifecycle: orchestrated steps, a trained and versioned model artifact, robustness validation,
+ML lifecycle: orchestrated steps, a trained and versioned model artefact, robustness validation,
 and graceful error handling.
 
 ---
@@ -243,7 +243,7 @@ PASS total_of_special_requests: KL=0.000057 thr=0.000145
 PASS stays_in_week_nights: KL=0.000079 thr=0.000264
 ```
 
-All features pass because holdout is from the same source as training; no production-like shift simulated.
+All features pass because the holdout is from the same source as the training; no production-like shift is simulated.
 
 ### 3. A/B Testing (`ab_testing/split_strategy.py` & `ab_testing/ab_test_flow.py`)
 
@@ -291,7 +291,7 @@ Variant 1 gets the remaining users.
 
 ## Complete Task 3 Workflow
 
-### Step 1: Serialize Data with Row IDs
+### Step 1: Serialise Data with Row IDs
 ```bash
 python scripts/serialize_data.py
 ```
@@ -521,7 +521,7 @@ python ab_testing/ab_test_flow.py v1_test v2_test test_validation
 | Model Registry | ✓ | `/models/registry.json` - 17 total models, all Task 3 models present |
 | Split Mappings | ✓ | `/models/splits_*.json` - All 4 models have train/robustness/holdout row mappings |
 | Data Serialization | ✓ | `/data/hotel_bookings.parquet` - 119,386 rows with row_id column (1.9M) |
-| Model Artifacts | ✓ | 4 joblib files (512M/272M each), all models loadable |
+| Model Artefacts | ✓ | 4 joblib files (512M/272M each), all models loadable |
 
 #### Modules & Code
 | Module | Status | Lines | Purpose |
@@ -575,12 +575,12 @@ python ab_testing/ab_test_flow.py v1_test v2_test test_validation
 
 ```bash
 # Flow versioning enables reproducibility
-✓ Same FLOW_VERSION_ID reproducibly resolves to same model_id
+✓ Same FLOW_VERSION_ID reproducibly resolves to the same model_id
 ✓ Same flow_version_id produces identical split_config and excluded_features
 ✓ Split mappings persist (splits_*.json) for exact row-level reproducibility
 
 # Deterministic A/B splitting
-✓ Same row_id + experiment_id always maps to same variant
+✓ Same row_id + experiment_id always maps to the same variant
 ✓ Different experiment_ids produce independent splits (no conflicts)
 ✓ Hash collision rate: 0% (due to deterministic hashing)
 ```
